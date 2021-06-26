@@ -1,0 +1,9 @@
+C:\Users\KyunLegend\Documents\cAlgo\Sources\Indicators\BitQ PeakTrough V2\BitQ PeakTrough V2\bin\Debug\BitQ PeakTrough V2.dll
+C:\Users\KyunLegend\Documents\cAlgo\Sources\Indicators\BitQ PeakTrough V2\BitQ PeakTrough V2\bin\Debug\BitQ PeakTrough V2.pdb
+C:\Users\KyunLegend\Documents\cAlgo\Sources\Indicators\BitQ PeakTrough V2\BitQ PeakTrough V2\bin\Debug\cAlgo.API.dll
+C:\Users\KyunLegend\Documents\cAlgo\Sources\Indicators\BitQ PeakTrough V2\BitQ PeakTrough V2\bin\Debug\Utils.dll
+C:\Users\KyunLegend\Documents\cAlgo\Sources\Indicators\BitQ PeakTrough V2\BitQ PeakTrough V2\obj\Debug\BitQ PeakTrough V2.csproj.AssemblyReference.cache
+C:\Users\KyunLegend\Documents\cAlgo\Sources\Indicators\BitQ PeakTrough V2\BitQ PeakTrough V2\obj\Debug\BitQ PeakTrough V2.csproj.CoreCompileInputs.cache
+C:\Users\KyunLegend\Documents\cAlgo\Sources\Indicators\BitQ PeakTrough V2\BitQ PeakTrough V2\obj\Debug\BitQ PeakTrough V2.csproj.CopyComplete
+C:\Users\KyunLegend\Documents\cAlgo\Sources\Indicators\BitQ PeakTrough V2\BitQ PeakTrough V2\obj\Debug\BitQ PeakTrough V2.dll
+C:\Users\KyunLegend\Documents\cAlgo\Sources\Indicators\BitQ PeakTrough V2\BitQ PeakTrough V2\obj\Debug\BitQ PeakTrough V2.pdb
