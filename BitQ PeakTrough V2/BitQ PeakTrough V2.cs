@@ -3,7 +3,8 @@ using cAlgo.API;
 using cAlgo.API.Internals;
 using cAlgo.API.Indicators;
 using System.Collections;
-namespace BitQIndicator
+using DataType;
+namespace BitQPeakTrough
 {
     [Indicator(IsOverlay = true, TimeZone = TimeZones.UTC, AccessRights = AccessRights.None)]
     public class BitQPeakTrough : Indicator
@@ -35,7 +36,7 @@ namespace BitQIndicator
         private AverageTrueRange atrIndicator;
         public static ArrayList peakData = new ArrayList();
         public static ArrayList troughtData = new ArrayList();
-        private Utils.Base utils = new Utils.Base();
+        public static ArrayList peakTroughData = new ArrayList();
         private IndicatorDataSeries lineChartDataSeries;
         private bool isLastDown = true;
 
@@ -66,6 +67,16 @@ namespace BitQIndicator
             //Print("troughs length = ", troughtData.Count);
 
         }
+        public void CalculateV1(int index)
+        {
+            double thresholdBaseonATR = atrIndicator.Result[index] * pipValue;
+
+            findPeakTrough(index, AutoThreshold ? thresholdBaseonATR : Threshold);
+            //Result[index] = index;
+            //Print("peaks length = ", peakData.Count);
+            //Print("troughs length = ", troughtData.Count);
+
+        }
 
         public void findPeakTroughV2(int index, double threshold = 0, bool shoulDraw = true)
         {
@@ -82,14 +93,16 @@ namespace BitQIndicator
                     if (isGreenCandle(index - 1))
                     {
                         Chart.DrawIcon("peak_" + (index - 1), ChartIconType.DownArrow, index - 1, lineChartDataSeries[index - 1], Color.White);
-                        var data = new Utils.Base.Point(index - 1, lineChartDataSeries[index - 1], Bars.OpenTimes[index - 1]);
+                        var data = new BitQ_Point(index - 1, lineChartDataSeries[index - 1], Bars.OpenTimes[index - 1]);
                         peakData.Add(data);
+                        peakTroughData.Add(data);
                     }
                     else
                     {
                         Chart.DrawIcon("peak_" + (index - 2), ChartIconType.DownArrow, index - 2, lineChartDataSeries[index - 2], Color.White);
-                        var data = new Utils.Base.Point(index - 2, lineChartDataSeries[index - 2], Bars.OpenTimes[index - 2]);
+                        var data = new BitQ_Point(index - 2, lineChartDataSeries[index - 2], Bars.OpenTimes[index - 2]);
                         peakData.Add(data);
+                        peakTroughData.Add(data);
                     }
                 }
                 if (lineChartDataSeries[index - 2] > lineChartDataSeries[index - 1] && lineChartDataSeries[index - 1] < lineChartDataSeries[index])
@@ -97,8 +110,9 @@ namespace BitQIndicator
                     if (!isGreenCandle(index - 1) || true)
                     {
                         Chart.DrawIcon("trough_" + (index - 1), ChartIconType.UpArrow, index - 1, lineChartDataSeries[index - 1], Color.Blue);
-                        var data = new Utils.Base.Point(index - 1, lineChartDataSeries[index - 1], Bars.OpenTimes[index - 1]);
+                        var data = new BitQ_Point(index - 1, lineChartDataSeries[index - 1], Bars.OpenTimes[index - 1]);
                         troughtData.Add(data);
+                        peakTroughData.Add(data);
                     }
                     //else
                     //{
@@ -145,7 +159,7 @@ namespace BitQIndicator
              *  - If there are a value that create a peak and it's green candle. It MAY be peak (1)
              *  - When found a trough (same but reverse logic with peak), that peak (1) can be confirm.
              *
-             */
+             */ 
             if (isFindingPeak)
             {
                 //Print("isFindingPeak:", isFindingPeak + ",index:"+ index);
@@ -175,8 +189,9 @@ namespace BitQIndicator
                             //Print("isFindingPeak:drawTrough:", index+ " ,"+ lastTroughIndex +" ," +lastPeakIndex);
                         }
                         dataSeries[lastTroughIndex] = -lastTroughValue;
-                        var data = new Utils.Base.Point(lastTroughIndex, lastTroughValue, time);
+                        var data = new BitQ_Point(lastTroughIndex, lastTroughValue, time);
                         troughtData.Add(data);
+                        peakTroughData.Add(data);
 
                         // reset value, changing to find Trough
                         isFindingPeak = !isFindingPeak;
@@ -234,8 +249,9 @@ namespace BitQIndicator
                             //Print("isFindingTrough:drawPeak:", index + " ," + lastPeakIndex + " ," + lastTroughIndex);
                         }
                         dataSeries[lastPeakIndex] = lastPeakValue;
-                        var data = new Utils.Base.Point(lastPeakIndex, lastPeakValue, time);
+                        var data = new BitQ_Point(lastPeakIndex, lastPeakValue, time);
                         peakData.Add(data);
+                        peakTroughData.Add(data);
                         // reset value, changing to find Peak
                         isFindingPeak = !isFindingPeak;
                         mTroughValue = LARGE_NUM;
@@ -294,6 +310,11 @@ namespace BitQIndicator
             return troughtData;
         }
 
+        public ArrayList getPeakTroughData()
+        {
+            return peakTroughData;
+        }
+
         public void reset()
         {
             lastPeakIndex = 0;
@@ -308,6 +329,7 @@ namespace BitQIndicator
             dataSeries = CreateDataSeries();
             peakData = new ArrayList();
             troughtData = new ArrayList();
+            peakTroughData = new ArrayList();
         }
     }
 }
