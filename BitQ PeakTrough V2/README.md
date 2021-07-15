@@ -1,0 +1,2 @@
+#README - log
+15/7/2021: Chuyển hoàn toàn sang cách tính logic theo close price. và theo logic cách tính logic v2 để có kết quả peak, trough chuẩn hơn. Vẫn giữ logic tính peak trough dựa theo threshold và các setting cũ.

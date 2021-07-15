@@ -21,24 +21,18 @@ namespace BitQPeakTrough
         public IndicatorDataSeries Result { get; set; }
 
         private const double LARGE_NUM = 99999999999L;
-        private const double MIN_COMPARE_VALUE = 1E-08;
-        private int lastPeakIndex = 0;
-        private int lastTroughIndex = 0;
-        private double lastPeakValue = 0;
-        private double lastTroughValue = LARGE_NUM;
-        private int mPeakIndex = 0;
-        private int mTroughIndex = 0;
-        private double mPeakValue = 0;
-        private double mTroughValue = LARGE_NUM;
-        private bool isFindingPeak = true;
         public IndicatorDataSeries dataSeries;
         private double pipValue;
         private AverageTrueRange atrIndicator;
         public static ArrayList peakData = new ArrayList();
         public static ArrayList troughtData = new ArrayList();
         public static ArrayList peakTroughData = new ArrayList();
+        // memory peak trough value
+        private static BitQ_Point mPeakPoint = new BitQ_Point(0, 0, new DateTime());
+        private static BitQ_Point mTroughPoint = new BitQ_Point(0, LARGE_NUM, new DateTime());
         private IndicatorDataSeries lineChartDataSeries;
-        private bool isLastDown = true;
+        // check current work is find peak or trough'
+        private bool isFindPeak = true;
 
         public void init(bool autoThreshold, int iconSpace)
         {
@@ -60,25 +54,13 @@ namespace BitQPeakTrough
         {
             double thresholdBaseonATR = atrIndicator.Result[index] * pipValue;
 
-            //findPeakTrough(index, AutoThreshold ? thresholdBaseonATR : Threshold);
-            findPeakTroughV2(index, thresholdBaseonATR, true);
-            //Result[index] = index;
-            //Print("peaks length = ", peakData.Count);
-            //Print("troughs length = ", troughtData.Count);
-
-        }
-        public void CalculateV1(int index)
-        {
-            double thresholdBaseonATR = atrIndicator.Result[index] * pipValue;
-
-            findPeakTrough(index, AutoThreshold ? thresholdBaseonATR : Threshold);
-            //Result[index] = index;
+            findPeakTroughV2(index, AutoThreshold ? thresholdBaseonATR : Threshold, true);
             //Print("peaks length = ", peakData.Count);
             //Print("troughs length = ", troughtData.Count);
 
         }
 
-        public void findPeakTroughV2(int index, double threshold = 0, bool shoulDraw = true)
+        public void findPeakTroughV2(int index, double threshold = 0, bool shouldDraw = true)
         {
             var openPrice = Bars.OpenPrices[index];
             var closePrice = Bars.ClosePrices[index];
@@ -92,35 +74,110 @@ namespace BitQPeakTrough
                 {
                     if (isGreenCandle(index - 1))
                     {
-                        Chart.DrawIcon("peak_" + (index - 1), ChartIconType.DownArrow, index - 1, lineChartDataSeries[index - 1], Color.White);
-                        var data = new BitQ_Point(index - 1, lineChartDataSeries[index - 1], Bars.OpenTimes[index - 1]);
-                        peakData.Add(data);
-                        peakTroughData.Add(data);
-                    }
-                    else
-                    {
-                        Chart.DrawIcon("peak_" + (index - 2), ChartIconType.DownArrow, index - 2, lineChartDataSeries[index - 2], Color.White);
-                        var data = new BitQ_Point(index - 2, lineChartDataSeries[index - 2], Bars.OpenTimes[index - 2]);
-                        peakData.Add(data);
-                        peakTroughData.Add(data);
+                        //Chart.DrawIcon("peak_" + (index - 1), ChartIconType.DownArrow, index - 1, lineChartDataSeries[index - 1], Color.White);
+                        BitQ_Point data = new BitQ_Point(index - 1, lineChartDataSeries[index - 1], Bars.OpenTimes[index - 1]);
+                        confirmPeakAndTrough(true, data, threshold, shouldDraw);
                     }
                 }
                 if (lineChartDataSeries[index - 2] > lineChartDataSeries[index - 1] && lineChartDataSeries[index - 1] < lineChartDataSeries[index])
                 {
                     if (!isGreenCandle(index - 1) || true)
                     {
-                        Chart.DrawIcon("trough_" + (index - 1), ChartIconType.UpArrow, index - 1, lineChartDataSeries[index - 1], Color.Blue);
-                        var data = new BitQ_Point(index - 1, lineChartDataSeries[index - 1], Bars.OpenTimes[index - 1]);
-                        troughtData.Add(data);
-                        peakTroughData.Add(data);
+                        //Chart.DrawIcon("trough_" + (index - 1), ChartIconType.DownArrow, index - 1, lineChartDataSeries[index - 1], Color.Blue);
+                        BitQ_Point data = new BitQ_Point(index - 1, lineChartDataSeries[index - 1], Bars.OpenTimes[index - 1]);
+                        confirmPeakAndTrough(false, data, threshold, shouldDraw);
                     }
-                    //else
-                    //{
-                    //    Chart.DrawIcon("trough_" + (index - 2), ChartIconType.DownArrow, index - 2, lineChartDataSeries[index - 2], Color.Blue);
-                    //}
                 }
             }
 
+        }
+
+        public void confirmPeakAndTrough(bool isPeak, BitQ_Point pointData, double threshold, bool shouldDraw)
+        {
+            if (isFindPeak)
+            {
+                /**
+                 * Currently finding true peak. 
+                 * If got a trough, check that trought with mPeakPoint then confirm that
+                 * mPeakPoint or not.
+                 * If got a peak, check that peak with mPeakPoint, if yValue of that 
+                 * greater than mPeakPoint --> replace mPeakPoint with that point 
+                 */
+                if (isPeak)
+                {
+                    // got a peak.
+                    if (pointData.yValue > mPeakPoint.yValue)
+                    {
+                        mPeakPoint = pointData;
+                    }
+                }
+                else
+                {
+                    // got a trough.
+                    if ((mPeakPoint.yValue - pointData.yValue) * pipValue > threshold && mPeakPoint.yValue != 0)
+                    {
+                        // satified condition, confirm mPeakPoint and change to find true trought
+                        peakData.Add(mPeakPoint);
+                        peakTroughData.Add(mPeakPoint);
+                        isFindPeak = false;
+
+                        // draw peak;
+                        if (shouldDraw)
+                        {
+                            Chart.DrawIcon("peak_" + mPeakPoint.barIndex, ChartIconType.DownArrow, mPeakPoint.barIndex, mPeakPoint.yValue, Color.White);
+                        }
+
+                        // set pointData to mTroughPoint;
+                        mTroughPoint = pointData;
+
+                        //reset cache peak point
+                        mPeakPoint = new BitQ_Point(0, 0, new DateTime());
+
+                    }
+                }
+            }
+            else
+            {
+                /**
+                 * Currently finding true trough. 
+                 * If got a peak, check that trought with mTroughPoint then confirm that
+                 * mTroughPoint or not.
+                 * If got a trough, check that trough with mTroughPoint, if yValue of that 
+                 * smaller than mTroughPoint --> replace mTroughPoint with that point 
+                 */
+                if (!isPeak)
+                {
+                    // got a trough
+                    if (pointData.yValue < mTroughPoint.yValue)
+                    {
+                        mTroughPoint = pointData;
+                    }
+                }
+                else
+                {
+                    // got a peak
+                    if ((pointData.yValue - mTroughPoint.yValue) * pipValue > threshold && mTroughPoint.yValue != LARGE_NUM)
+                    {
+                        // satified condition, confirm mTroughPoint and change to find true peak
+                        troughtData.Add(mTroughPoint);
+                        peakTroughData.Add(mTroughPoint);
+                        isFindPeak = true;
+
+                        // draw trough;
+                        if (shouldDraw)
+                        {
+                            Chart.DrawIcon("trough_" + mTroughPoint.barIndex, ChartIconType.UpArrow, mTroughPoint.barIndex, mTroughPoint.yValue, Color.Blue);
+                        }
+
+                        // set pointData to mPeakPoint;
+                        mPeakPoint = pointData;
+
+                        //reset cache peak point
+                        mTroughPoint = new BitQ_Point(0, LARGE_NUM, new DateTime());
+
+                    }
+                }
+            }
         }
 
         public bool isGreenCandle(int index)
@@ -129,175 +186,6 @@ namespace BitQPeakTrough
             var closePrice = Bars.ClosePrices[index];
 
             return openPrice < closePrice;
-        }
-
-
-        public void findPeakTrough(int index, double threshold = 0, bool shouldDraw = true)
-        {
-            var openPrice = Bars.OpenPrices[index];
-            var closePrice = Bars.ClosePrices[index];
-            var high = Math.Max(openPrice, closePrice);
-            var low = Math.Min(openPrice, closePrice);
-            var time = Bars.OpenTimes[index];
-            var shouldOveridePeak = true;
-            var shouldOverideTrough = true;
-            // create point:
-            //Print("index = " + index + "; OP=" + openPrice + " ; CP=" + closePrice + " ; open > close : " + (openPrice> closePrice));
-            //if(openPrice - closePrice < MIN_COMPARE_VALUE)
-            //{
-            //     green candle.
-            //    Chart.DrawIcon("Linechart_Icon_" + index.ToString(), ChartIconType.Circle, index, closePrice, Color.White);
-            //} else
-            //{
-            //     red candle.
-            //    Chart.DrawIcon("Linechart_Icon_" + index.ToString(), ChartIconType.Circle, index, closePrice, Color.White);
-            //}
-            //if (!(index >= 1150 && index <= 1180)) return;
-            // LOGIC:
-            /*
-             * STEP 1: Finding peak:
-             *  - If there are a value that create a peak and it's green candle. It MAY be peak (1)
-             *  - When found a trough (same but reverse logic with peak), that peak (1) can be confirm.
-             *
-             */ 
-            if (isFindingPeak)
-            {
-                //Print("isFindingPeak:", isFindingPeak + ",index:"+ index);
-                // is higher value from it and it is green candle
-                if (isValueLowerCurrent(mPeakValue, index))
-                {
-                    if (openPrice < closePrice)
-                    {
-                        mPeakIndex = index;
-                        mPeakValue = high;
-                    }
-                }
-                else
-                {
-                    //Print("isFindingPeak:stop:", index);
-                    lastPeakIndex = mPeakIndex;
-                    lastPeakValue = mPeakValue;
-                    // compare to threshold; --> found a peak;
-                    var currChanging = Math.Floor(Math.Abs(mPeakValue - lastTroughValue) * pipValue);
-                    if (currChanging > threshold)
-                    {
-
-                        // old trought should been pick;
-                        if (shouldDraw)
-                        {
-                            Chart.DrawIcon("icone" + index.ToString(), ChartIconType.UpTriangle, lastTroughIndex, lastTroughValue - IconSpace / pipValue, Color.Blue);
-                            //Print("isFindingPeak:drawTrough:", index+ " ,"+ lastTroughIndex +" ," +lastPeakIndex);
-                        }
-                        dataSeries[lastTroughIndex] = -lastTroughValue;
-                        var data = new BitQ_Point(lastTroughIndex, lastTroughValue, time);
-                        troughtData.Add(data);
-                        peakTroughData.Add(data);
-
-                        // reset value, changing to find Trough
-                        isFindingPeak = !isFindingPeak;
-                        mPeakValue = 0;
-                        lastTroughValue = LARGE_NUM;
-                        shouldOverideTrough = false;
-                    }
-                    else
-                    {
-                        // reset value
-                        mPeakValue = 0;
-                    }
-
-                }
-                if (isValueHigherCurrent(lastTroughValue, index) && shouldOverideTrough)
-                {
-                    // If it was red candle
-                    if (openPrice > closePrice)
-                    {
-                        //Print("isFindingPeak:stop:findNewTrough", index);
-                        // replace older trought with new one suitable;
-                        lastTroughValue = low;
-                        lastTroughIndex = index;
-                        // reset old mPeakValue value;
-                        mPeakValue = low;
-                    }
-
-                }
-            }
-            else
-            {
-                //Print("isFindingTrough", isFindingPeak + ",index:" + index);
-                // find a trough
-                if (isValueHigherCurrent(mTroughValue, index))
-                {
-                    // If it was a red candle.
-                    if (openPrice > closePrice)
-                    {
-                        mTroughValue = low;
-                        mTroughIndex = index;
-                    }
-                }
-                else
-                {
-                    //Print("isFindingTrough:stop:", index);
-                    lastTroughIndex = mTroughIndex;
-                    lastTroughValue = mTroughValue;
-                    // compare to threshold; --> found a trough;
-                    var currChanging = Math.Floor(Math.Abs(mTroughValue - lastPeakValue) * pipValue);
-                    if (currChanging > threshold)
-                    {
-                        if (shouldDraw)
-                        {
-                            Chart.DrawIcon("icone" + index.ToString(), ChartIconType.DownTriangle, lastPeakIndex, lastPeakValue + IconSpace / pipValue, Color.Purple);
-                            //Print("isFindingTrough:drawPeak:", index + " ," + lastPeakIndex + " ," + lastTroughIndex);
-                        }
-                        dataSeries[lastPeakIndex] = lastPeakValue;
-                        var data = new BitQ_Point(lastPeakIndex, lastPeakValue, time);
-                        peakData.Add(data);
-                        peakTroughData.Add(data);
-                        // reset value, changing to find Peak
-                        isFindingPeak = !isFindingPeak;
-                        mTroughValue = LARGE_NUM;
-                        lastPeakValue = 0;
-                        shouldOveridePeak = false;
-                    }
-                    else
-                    {
-                        //resetvalue
-                        mTroughValue = LARGE_NUM;
-                    }
-                }
-                if (isValueLowerCurrent(lastPeakValue, index) && shouldOveridePeak)
-                {
-                    // if it was a green candle
-                    if (openPrice < closePrice)
-                    {
-                        //Print("isFindingTrought:stop:findNewPeak", index);
-                        lastPeakValue = high;
-                        lastPeakIndex = index;
-                        // reset
-                        mTroughValue = high;
-                    }
-
-                }
-            }
-        }
-
-        public bool isValueLowerCurrent(double value, int index)
-        {
-            var openPrice = Bars.OpenPrices[index];
-            var closePrice = Bars.ClosePrices[index];
-            var max = Math.Max(openPrice, closePrice);
-            if (value - max < MIN_COMPARE_VALUE)
-                return true;
-            return false;
-        }
-
-        public bool isValueHigherCurrent(double value, int index)
-        {
-            var openPrice = Bars.OpenPrices[index];
-            var closePrice = Bars.ClosePrices[index];
-            var min = Math.Min(openPrice, closePrice);
-            if (value - min > MIN_COMPARE_VALUE)
-                return true;
-            return false;
         }
 
         public ArrayList getPeakData()
@@ -317,15 +205,6 @@ namespace BitQPeakTrough
 
         public void reset()
         {
-            lastPeakIndex = 0;
-            lastTroughIndex = 0;
-            lastPeakValue = 0;
-            lastTroughValue = LARGE_NUM;
-            mPeakIndex = 0;
-            mTroughIndex = 0;
-            mPeakValue = 0;
-            mTroughValue = LARGE_NUM;
-            isFindingPeak = true;
             dataSeries = CreateDataSeries();
             peakData = new ArrayList();
             troughtData = new ArrayList();
